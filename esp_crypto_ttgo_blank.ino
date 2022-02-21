@@ -109,7 +109,7 @@ void loop() {
     }
     HTTPClient http;
 
-    String priceString = "https://api.binance.com/api/v1/ticker/price?symbol=" + cryptos[cryptoChose] + "EUR";
+    String priceString = "https://api.binance.com/api/v1/ticker/price?symbol=" + cryptos[cryptoChose] + currencies[0];
     http.begin(priceString);
     http.GET();
     String payload = http.getString();
@@ -117,7 +117,7 @@ void loop() {
     prices[0] = jsonBuffer["price"];
     http.end();
 
-    String changeString = "https://api.binance.com/api/v3/ticker/24hr?symbol=" + cryptos[cryptoChose] + "EUR";
+    String changeString = "https://api.binance.com/api/v3/ticker/24hr?symbol=" + cryptos[cryptoChose] + currencies[0];
     http.begin(changeString);
     http.GET();
     payload = http.getString();
