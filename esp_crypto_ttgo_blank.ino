@@ -1,4 +1,3 @@
-
 //Includes-------------------------------------------|
 
 #include "WiFi.h"
@@ -7,6 +6,8 @@
 #include <NTPClient.h>
 #include <TFT_eSPI.h>
 #include <SPI.h>
+
+//Defines--------------------------------------------|
 
 #define ONBOARD_LED 25
 
@@ -19,8 +20,9 @@ char chBuffer[128];
 
 float prices[2];
 
-float myBalance = 0.01193475;
+float myBalance[2] = {0.0, 0.0};
 float pln = 4;
+float wealthEur;
 
 long period = 3600000;
 
@@ -28,14 +30,26 @@ unsigned long startTime;
 unsigned long currentTime;
 
 bool flag = 0;
+bool cryptoChose = 0;
 
 String formattedDate;
 String dayStamp;
 String timeStamp;
 
+String cryptos[2] = {"ETH", "BTC"};
+
+String currencies[2] = {"EUR", "PLN"};
+
 unsigned long exTime;
 unsigned long toExTime;
+
 //Setup----------------------------------------------|
+
+void IRAM_ATTR ISR()
+{
+  cryptoChose = !cryptoChose;
+  Serial.println(cryptoChose);
+}
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -54,6 +68,7 @@ void setup() {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   pinMode(ONBOARD_LED, OUTPUT);
 
+//WiFi Connection------------------------------------|
   Serial.print("Connecting to Wifi");
   WiFi.begin (chSSID, chPassword);
   while (WiFi.status() != WL_CONNECTED)
@@ -62,15 +77,11 @@ void setup() {
     delay (1250);
   }
 
-  // Display the IP.
-
   char  chIp[81];
   WiFi.localIP().toString().toCharArray(chIp, sizeof(chIp) - 1);
   sprintf(chBuffer, "IP  : %s", chIp);
   Serial.println(chBuffer);
   tft.drawString(chBuffer, 0, 0, 2);
-
-  // Display the rssi.
 
   sprintf(chBuffer, "RSSI: %d", WiFi.RSSI());
   Serial.println(chBuffer);
@@ -79,6 +90,9 @@ void setup() {
 
   timeClient.begin();
   timeClient.setTimeOffset(3600);
+
+  pinMode(0, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(0), ISR, FALLING);
   
   startTime = millis();
 }
@@ -95,14 +109,16 @@ void loop() {
     }
     HTTPClient http;
 
-    http.begin("https://api.binance.com/api/v1/ticker/price?symbol=ETHEUR");
+    String priceString = "https://api.binance.com/api/v1/ticker/price?symbol=" + cryptos[cryptoChose] + "EUR";
+    http.begin(priceString);
     http.GET();
     String payload = http.getString();
     deserializeJson(jsonBuffer, payload);
     prices[0] = jsonBuffer["price"];
     http.end();
 
-    http.begin("https://api.binance.com/api/v3/ticker/24hr?symbol=ETHEUR");
+    String changeString = "https://api.binance.com/api/v3/ticker/24hr?symbol=" + cryptos[cryptoChose] + "EUR";
+    http.begin(changeString);
     http.GET();
     payload = http.getString();
     deserializeJson(jsonBuffer, payload);
@@ -112,21 +128,19 @@ void loop() {
     currentTime = millis();
     if(currentTime - startTime >= period || flag == 0)
     {
-      http.begin("https://open.er-api.com/v6/latest/EUR");
+      String currencyString = "https://open.er-api.com/v6/latest/" + currencies[0];
+      http.begin(currencyString);
       int code = http.GET();
-      //Serial.println(code);
       payload = http.getString();
-      //Serial.println(payload);
       deserializeJson(jsonBuffer, payload);
       JsonObject rates = jsonBuffer["rates"];
-      pln = rates["PLN"];
-      //Serial.println(pln);
+      pln = rates[currencies[1]];
       http.end();
       startTime = millis();
       flag = 1;
     }
-
-    float wealthEur = prices[0] * myBalance;
+    
+    wealthEur = prices[0] * myBalance[cryptoChose];
     float wealthPln = wealthEur * pln;
 
     formattedDate = timeClient.getFormattedDate();
@@ -134,26 +148,18 @@ void loop() {
     dayStamp = formattedDate.substring(0, splitT);
     timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
 
-    /*String toPrint = "ETH price: " + String(prices[0]) + " EUR, 24h change: " + String(prices[1]) + "%, my balance: " + String(wealthEur) + " EUR/" + String(wealthPln) + " PLN";
-    Serial.println("<----------------------------------------------->\n");
-    Serial.println(dayStamp);
-    Serial.println(timeStamp);
-    Serial.println(toPrint);
-    Serial.println("\n<----------------------------------------------->\n");*/
-
-    String ethPrice1 = "ETH price (EUR): " + String(prices[0]);
-    String ethPrice2 = "ETH price (PLN): " + String(prices[0] * pln);
-    String ethChange1 = "ETH 24h change: ";
-    String ethChange2 = String(prices[1]) + "%";
-    String myBalance = "Balance: " + String(wealthEur) + " EUR/" + String(wealthPln) + " PLN";
-    //tft.setCursor(0,0);
-    //tft.print(toPrint);
+    String cryptoPrice1 = cryptos[cryptoChose] + " price (" + currencies[0] + "): " + String(prices[0]);
+    String cryptoPrice2 = cryptos[cryptoChose] + " price (" + currencies[1] + "): " + String(prices[0] * pln);
+    String cryptoChange1 = cryptos[cryptoChose] + " 24h change: ";
+    String cryptoChange2 = String(prices[1]) + "%";
+    String realBalance = "Balance: " + String(wealthEur) + " " + currencies[0] + "/" + String(wealthPln) + " " + currencies[1];
+    
     tft.fillScreen(TFT_BLACK);
     tft.drawString(dayStamp, 0, 0, 2);
     tft.drawString(timeStamp, 0, 20, 2);
-    tft.drawString(ethPrice1, 0, 40, 2);
-    tft.drawString(ethPrice2, 0, 60, 2);
-    tft.drawString(ethChange1, 0, 80, 2);
+    tft.drawString(cryptoPrice1, 0, 40, 2);
+    tft.drawString(cryptoPrice2, 0, 60, 2);
+    tft.drawString(cryptoChange1, 0, 80, 2);
     if(prices[1] >= 0)
     {
       tft.setTextColor(TFT_GREEN, TFT_BLACK);
@@ -162,11 +168,11 @@ void loop() {
     {
       tft.setTextColor(TFT_RED, TFT_BLACK);
     }
-    tft.drawString(ethChange2, 110, 80, 2);
+    tft.drawString(cryptoChange2, 110, 80, 2);
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString(myBalance, 0, 100, 2);
+    tft.drawString(realBalance, 0, 100, 2);
 
     toExTime = millis();
-    delay(5000-(toExTime - exTime)); //  seconds to update.
+    delay(5000-(toExTime - exTime));
   }
 }
