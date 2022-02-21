@@ -10,9 +10,16 @@ Features:
 
 ## Configuration
 line 15 - set your wifi password
+
 line 16 - set your wifi SSID
+
 line 22 - set your ETH balance
+
 line 98 - change from symbol=ETHEUR to any crypto in any supported currency
+
 line 105 - same as line 98
+
 line 115 - change to desired currency to convert from
+
 line 122 - change to desired currency to convert to
+
