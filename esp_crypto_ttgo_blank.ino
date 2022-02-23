@@ -31,6 +31,7 @@ unsigned long currentTime;
 
 bool flag = 0;
 bool cryptoChose = 0;
+bool goToSleep = 0;
 
 String formattedDate;
 String dayStamp;
@@ -45,10 +46,15 @@ unsigned long toExTime;
 
 //Setup----------------------------------------------|
 
-void IRAM_ATTR ISR()
+void IRAM_ATTR cryptoSwitch()
 {
   cryptoChose = !cryptoChose;
   Serial.println(cryptoChose);
+}
+
+void IRAM_ATTR deepSleep()
+{
+  goToSleep = 1;
 }
 
 TFT_eSPI tft = TFT_eSPI();
@@ -92,14 +98,23 @@ void setup() {
   timeClient.setTimeOffset(3600);
 
   pinMode(0, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(0), ISR, FALLING);
-  
-  startTime = millis();
+  pinMode(35, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(0), cryptoSwitch, FALLING);
+  attachInterrupt(digitalPinToInterrupt(35), deepSleep, FALLING);
+
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_35, 0);
 }
 
 
 void loop() {
   exTime = millis();
+  if(goToSleep == 1)
+  {
+    detachInterrupt(digitalPinToInterrupt(32)); //because later used for wake up
+    //Serial.println("Going to sleep now");
+    esp_sleep_enable_ext0_wakeup(GPIO_NUM_35,0); //1 = High, 0 = Low connected to GPIO32
+    esp_deep_sleep_start();
+  }
   if ((WiFi.status() == WL_CONNECTED))
 
   {
