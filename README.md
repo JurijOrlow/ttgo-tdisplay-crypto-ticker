@@ -6,6 +6,8 @@ In my code it grabs ETH and BTC prices in EUR, grabs exchange rate EUR-PLN and c
 
 Crypto prices and time refreshes every 5 seconds, exchange rates refresh every 60 minutes.
 
+1st button changes crypto, 2nd button puts board to deep sleep and wakes it up.
+
 ## Configuration
 1. lines 16 and 17 - your WiFi credentials
 2. line 23 - your balance in desired cryptos (position corresponds to position in cryptos table)
